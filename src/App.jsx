@@ -1391,12 +1391,23 @@ export default function Finex() {
                 </button>
                 {voiceSupported && (
                   <button
-                    onClick={toggleMic}
-                    aria-label={listening ? "Ferma" : "Parla"}
+                    onClick={() => { if (!listening) toggleMic(); }}
+                    disabled={listening}
+                    aria-label="Parla"
                     className="icon-btn"
-                    style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: listening ? t.accent : "#1B2035", color: listening ? "#0A0D1A" : "#9AA3B8", animation: listening ? "pulseMic 1.4s infinite" : "none" }}
+                    style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: listening ? "#1B2035" : "#1B2035", color: listening ? "#5B6478" : "#9AA3B8", opacity: listening ? 0.5 : 1 }}
                   >
-                    {listening ? <MicOff size={16} /> : <Mic size={16} />}
+                    <Mic size={16} />
+                  </button>
+                )}
+                {voiceSupported && listening && (
+                  <button
+                    onClick={() => toggleMic()}
+                    aria-label="Ferma registrazione"
+                    className="icon-btn"
+                    style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: "#E85D4A", color: "#fff", animation: "pulseMic 1.4s infinite" }}
+                  >
+                    <MicOff size={16} />
                   </button>
                 )}
                 <textarea
