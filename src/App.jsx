@@ -4,6 +4,7 @@ import {
   Settings, MessageCircle, LayoutGrid, History, ChevronDown, Palette, TrendingUp, TrendingDown, Sparkles, Volume2, Copy, Cloud, RefreshCw, KeyRound, Languages,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, LineChart, Line, ReferenceLine, CartesianGrid } from "recharts";
+import { scanReceiptWithTesseract } from "./receiptOcr";
 
 const ACCOUNTS_KEY = "finex:accounts";
 const THEME_KEY = "finex:theme";
@@ -786,6 +787,7 @@ export default function Finex() {
       for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
       setInput(text);
     };
+    rec.onstart = () => setListening(true);
     rec.onerror = () => setListening(false);
     rec.onend = () => setListening(false);
     recognitionRef.current = rec;
@@ -998,7 +1000,7 @@ export default function Finex() {
   const toggleMic = () => {
     if (!voiceSupported || !recognitionRef.current) return;
     if (listening) { recognitionRef.current.stop(); setListening(false); }
-    else { try { setInput(""); recognitionRef.current.start(); setListening(true); } catch { setListening(false); } }
+    else { try { setInput(""); recognitionRef.current.start(); } catch { setListening(false); } }
   };
   const speak = (text) => {
     if (!("speechSynthesis" in window)) return;
@@ -1094,31 +1096,7 @@ export default function Finex() {
     setSending(true);
     setError(null);
     try {
-      const base64 = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result.split(",")[1]);
-        r.onerror = () => rej(new Error("read failed"));
-        r.readAsDataURL(file);
-      });
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 400,
-          system: buildReceiptPrompt(account, appLanguage),
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
-              { type: "text", text: "Leggi questo scontrino." },
-            ],
-          }],
-        }),
-      });
-      const data = await response.json();
-      const raw = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-      const parsed = JSON.parse(raw);
+      const parsed = await scanReceiptWithTesseract(file, account, appLanguage);
       if (parsed.error) {
         await persistChat([...messages, { role: "assistant", content: `Non sono riuscito a leggere lo scontrino: ${parsed.error}`, ts: Date.now(), accountId: activeId }]);
       } else {
